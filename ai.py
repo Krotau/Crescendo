@@ -1,8 +1,10 @@
 import re
 
-
 from ollama import chat, ChatResponse
 from ollama import ListResponse, list
+
+from kokoro import KPipeline
+import soundfile as sf
 
 
 def print_models():
@@ -25,16 +27,30 @@ def print_models():
         print('\n')
     print("===================================")
 
-print("Generating response... (this may take up to a minute)")
 
-question = "What is the capital of France?"
+def generate_response(model: str, question: str) -> str:
+    """
+    Generate a response from the model using the provided question.
 
-response: ChatResponse = chat(model="deepseek-r1:7b", messages=[
-    {
-        "role": "user",
-        "content": question,
-     },
-])
+    Args:
+        model (str): The model name to use for generating the response.
+        question (str): The question to ask the model.
+
+    Returns:
+        ChatResponse: The response object from the chat function.
+
+    """
+    print("Generating response... (this may take up to a minute)")
+    response: ChatResponse = chat(model=model, messages=[
+        {
+            "role": "user",
+            "content": question,
+         },
+    ])
+
+    # remove <think> tags
+    response_content: str = remove_think_tags(response)
+    return response_content
 
 def remove_think_tags(response: ChatResponse) -> str:
     """
@@ -51,35 +67,25 @@ def remove_think_tags(response: ChatResponse) -> str:
     trimmed_response_content = re.sub(expr, "", response.message.content or "", flags=re.DOTALL)
     return trimmed_response_content
 
-r = remove_think_tags(response)
-print(r)
 
+def generate_audio(text: str):
+    # 🇺🇸 'a' => American English, 🇬🇧 'b' => British English
+    # 🇪🇸 'e' => Spanish es
+    # 🇫🇷 'f' => French fr-fr
+    # 🇮🇳 'h' => Hindi hi
+    # 🇮🇹 'i' => Italian it
+    # 🇯🇵 'j' => Japanese: pip install misaki[ja]
+    # 🇧🇷 'p' => Brazilian Portuguese pt-br
+    # 🇨🇳 'z' => Mandarin Chinese: pip install misaki[zh]
+    pipeline = KPipeline(lang_code='a') # <= make sure lang_code matches voice, reference above.
 
+    generator = pipeline(
+        text, voice='af_heart', # <= change voice here
+        speed=1, split_pattern=r'\n+'
+    )
 
-from kokoro import KPipeline
-import soundfile as sf
-import torch
-
-
-# 🇺🇸 'a' => American English, 🇬🇧 'b' => British English
-# 🇪🇸 'e' => Spanish es
-# 🇫🇷 'f' => French fr-fr
-# 🇮🇳 'h' => Hindi hi
-# 🇮🇹 'i' => Italian it
-# 🇯🇵 'j' => Japanese: pip install misaki[ja]
-# 🇧🇷 'p' => Brazilian Portuguese pt-br
-# 🇨🇳 'z' => Mandarin Chinese: pip install misaki[zh]
-pipeline = KPipeline(lang_code='a') # <= make sure lang_code matches voice, reference above.
-
-text = "Tony is the best. He is a great friend. He is a good person. He is a good friend. He is a good person. He is a good friend. He is a good person. He is a good friend. He is a good person. He is a good friend. He is a good person."
-
-generator = pipeline(
-    text, voice='af_heart', # <= change voice here
-    speed=1, split_pattern=r'\n+'
-)
-
-for i, (gs, ps, audio) in enumerate(generator):
-    print(i)  # i => index
-    print(gs) # gs => graphemes/text
-    print(ps) # ps => phonemes
-    sf.write(f'./out/{i}.wav', audio, 24000) # save each audio file
+    for i, (gs, ps, audio) in enumerate(generator):
+        print(i)  # i => index
+        print(gs) # gs => graphemes/text
+        print(ps) # ps => phonemes
+        sf.write(f'./out/{i}.wav', audio, 24000) # save each audio file

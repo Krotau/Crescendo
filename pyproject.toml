@@ -6,9 +6,13 @@ authors = ["Tim Smeets <tla.smeets@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 
-[tool.poetry.dependencies]
-python = "^3.12"
 
+[tool.poetry.dependencies]
+python = ">=3.12,<3.13"
+requests = "^2.32.3"
+soundfile = "^0.13.1"
+fastapi = { version = "^0.115.12", extras = ["standard"] }
+kokoro = { version = "^0.9.4" }
 
 [build-system]
 requires = ["poetry-core"]
