@@ -50,8 +50,8 @@ def health() -> dict:
 def ask(q: Annotated[str, Form()]):
     print("Received data:", q)
 
-    create_response(q)
-    return {"message": "Received data successfully!"}
+    s = create_response(q)
+    return {"message": s}
 
 
 
