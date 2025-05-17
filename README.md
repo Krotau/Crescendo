@@ -1,5 +1,7 @@
 ## Installation
 
+This project uses UV for managing and installing python packages. To run en deploy this project from source follow the instructions for installation below.
+
 ### Install UV
 
 ```bash
