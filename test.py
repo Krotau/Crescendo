@@ -20,7 +20,7 @@ def test():
     
     print("health check passed")
 
-    response = requests.post(url, json=payload)
+    response = requests.post(url, json=payload, headers=headers)
     if response.status_code != 200:
         print(response.status_code)
         print("Request failed")
