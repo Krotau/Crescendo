@@ -1,19 +1,12 @@
-[tool.poetry]
+[project]
 name = "crescendo"
 version = "0.1.0"
-description = "A web servable voice agent"
-authors = ["Tim Smeets <tla.smeets@gmail.com>"]
-license = "MIT"
+description = "Add your description here"
 readme = "README.md"
-
-
-[tool.poetry.dependencies]
-python = ">=3.12,<3.13"
-requests = "^2.32.3"
-soundfile = "^0.13.1"
-fastapi = { version = "^0.115.12", extras = ["standard"] }
-kokoro = { version = "^0.9.4" }
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115.12",
+    "kokoro>=0.9.4",
+    "ollama>=0.4.8",
+    "soundfile>=0.13.1",
+]
