@@ -41,6 +41,10 @@ def generate_response(model: str, question: str) -> str:
 
     """
     print("Generating response... (this may take up to a minute)")
+
+    # TODO: add async support (stream = true)
+    #  - make async generator for yielding values from async model
+
     response: ChatResponse = chat(model=model, messages=[
         {
             "role": "user",
@@ -84,8 +88,12 @@ def generate_audio(text: str):
         speed=1, split_pattern=r'\n+'
     )
 
+    # TODO: make for loop async --> asnc for
+    #  - yield values in for loop
+
     for i, (gs, ps, audio) in enumerate(generator):
         print(i)  # i => index
         print(gs) # gs => graphemes/text
         print(ps) # ps => phonemes
+
         sf.write(f'./out/{i}.wav', audio, 24000) # save each audio file
