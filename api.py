@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Form, HTTPException
+from fastapi import APIRouter, Form, HTTPException, WebSocket
 from pydantic import BaseModel
 from starlette.responses import FileResponse
 
@@ -15,7 +15,7 @@ class Query(BaseModel):
 
 @router.get("/")
 def read_root():
-    return FileResponse("static/index.html")
+    return FileResponse("gui/index.html")
 
 
 @router.get("/health")
@@ -30,7 +30,7 @@ def health() -> dict:
 
 
 @router.post("/ask")
-def ask(q: Annotated[str, Form()]):
+async def ask(q: Annotated[str, Form()]):
     print("Received data:", q)
 
     s = create_response(q)
@@ -38,7 +38,7 @@ def ask(q: Annotated[str, Form()]):
 
 
 @router.post("/generate")
-def generate(q: Query):
+async def generate(q: Query):
     """
     Call the ollama client to generate a response
 
@@ -56,6 +56,14 @@ def generate(q: Query):
 
     s = create_response(q.q)
     return {"message": s}
+
+
+@router.websocket("/ws")
+async def generate_ws(websocket: WebSocket):
+    await websocket.accept()
+    while True:
+        data = await websocket.receive_text()
+        await websocket.send_text(f"Message text was: {data}")
 
 
 def create_response(message: str) -> str:

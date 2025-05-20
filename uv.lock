@@ -220,6 +220,7 @@ dependencies = [
     { name = "ollama" },
     { name = "pip" },
     { name = "soundfile" },
+    { name = "websockets" },
 ]
 
 [package.metadata]
@@ -229,6 +230,7 @@ requires-dist = [
     { name = "ollama", specifier = ">=0.4.8" },
     { name = "pip", specifier = ">=25.1.1" },
     { name = "soundfile", specifier = ">=0.13.1" },
+    { name = "websockets", specifier = ">=15.0.1" },
 ]
 
 [[package]]
