@@ -50,27 +50,39 @@
             <button>Send</button>
         </form>
         <ul id='messages'>
+            <li></li>
         </ul>
         <button onclick="clearMessages(event)">Clear</button>
         <script>
             var ws = new WebSocket("ws://localhost:8000/ws");
             ws.onmessage = function(event) {
-                var messages = document.getElementById('messages')
-                var message = document.createElement('li')
-                var content = document.createTextNode(event.data)
-                message.appendChild(content)
-                messages.appendChild(message)
+                var messages = document.getElementById('messages');
+                var msg_data = JSON.parse(event.data);
+
+                console.log(msg_data)
+
+                if (!msg_data.done) {
+                    messages.lastElementChild.innerHTML = messages.lastElementChild.innerHTML + msg_data.msg
+                };
+                
+                if (msg_data.done) {
+                    var message = document.createElement('li')
+                    messages.appendChild(message)
+                };
             };
+
             function sendMessage(event) {
                 var input = document.getElementById("messageText")
                 ws.send(input.value)
                 input.value = ''
                 event.preventDefault()
             }
+
             function clearMessages(event) {
                 console.log("Clearing messages")
                 var messages = document.getElementById('messages')
-                messages.innerHTML = "";
+                
+                messages.innerHTML = "<li></li>";
             }
         </script>
     </body>

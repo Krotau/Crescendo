@@ -1,6 +1,7 @@
 import re
+from typing import AsyncIterator
 
-from ollama import chat, ChatResponse
+from ollama import chat, ChatResponse, AsyncClient
 from ollama import ListResponse, list
 
 from kokoro import KPipeline
@@ -42,9 +43,6 @@ def generate_response(model: str, question: str) -> str:
     """
     print("Generating response... (this may take up to a minute)")
 
-    # TODO: add async support (stream = true)
-    #  - make async generator for yielding values from async model
-
     response: ChatResponse = chat(
         model=model,
         messages=[
@@ -58,6 +56,25 @@ def generate_response(model: str, question: str) -> str:
     # remove <think> tags
     response_content: str = remove_think_tags(response)
     return response_content
+
+
+async def generate_response_stream(model: str, question: str):
+    print("Creating Async Client")
+
+    print("generating response")
+    response_stream: AsyncIterator[ChatResponse] = await AsyncClient().chat(
+        model=model,
+        stream=True,
+        messages=[
+            {
+                "role": "user",
+                "content": question,
+            },
+        ],
+    )
+
+    print("Done generating")
+    return response_stream
 
 
 def remove_think_tags(response: ChatResponse) -> str:

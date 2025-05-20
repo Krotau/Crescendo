@@ -1,3 +1,5 @@
+import json
+
 from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, WebSocket
@@ -61,9 +63,44 @@ async def generate(q: Query):
 @router.websocket("/ws")
 async def generate_ws(websocket: WebSocket):
     await websocket.accept()
+    msgs = []
     while True:
         data = await websocket.receive_text()
-        await websocket.send_text(f"Message text was: {data}")
+
+        if data is None:
+            continue
+
+        print("received message")
+        msgs.append(data)
+
+        stream = await ai.generate_response_stream(
+            model="deepseek-r1:7b", question=data
+        )
+
+        print("received response from model")
+        async for msg in stream:
+
+            if msg.message.content is not None and not msg.done:
+                to_send: dict[str, str | bool | None] = {
+                    "msg": msg.message.content,
+                    "done": msg.done,
+                }
+                json_data = json.dumps(to_send)
+                print("Sending chunk: " + json_data)
+                await websocket.send_text(json_data)
+            elif msg.done:
+                to_send: dict[str, str | bool | None] = {
+                    "msg": "Null",
+                    "done": msg.done,
+                }
+                json_data = json.dumps(to_send)
+                print("Sending chunk: " + json_data)
+                await websocket.send_text(json_data)
+            else:
+                await websocket.send_text("Something went wrong, please reload.")
+
+        # msgs.append(data)
+        # await websocket.send_text(f"Message text was: {msgs}")
 
 
 def create_response(message: str) -> str:
