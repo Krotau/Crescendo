@@ -6,7 +6,7 @@ export default defineConfig({
   output: {
     distPath: {
       root: '../',
-      js: 'gui/js',
+      js: 'static',
       html: 'gui',
       css: 'static',
       image: 'static',
