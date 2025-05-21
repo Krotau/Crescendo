@@ -125,7 +125,7 @@ celerybeat-schedule
 celerybeat.pid
 
 *.wav
-*/**.wave
+*/**.wav
 
 # SageMath parsed files
 *.sage.py
@@ -182,3 +182,8 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+
+# local docs
+in/
+out/

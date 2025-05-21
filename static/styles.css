@@ -1,0 +1,33 @@
+    /* #fffcf2, #ccc5b9, #403d39, #252422, #eb5e28 */
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #ccc5b9;
+        margin: 0;
+        padding: 20px;
+    }
+    h1 {
+        color: #333;
+    }
+    h3 {
+        color: #333;
+    }
+    form {
+        margin-top: 20px;
+    }
+    label {
+        display: block;
+        margin-bottom: 10px;
+    }
+    input[type="text"] {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 10px;
+    }
+    button {
+        padding: 10px 15px;
+        background-color: #403d39;
+        color: white;
+        border: none;
+        cursor: pointer;
+        border-radius: 1fr;
+    }

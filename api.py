@@ -3,6 +3,7 @@ import json
 from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, WebSocket
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.responses import FileResponse
 
@@ -11,8 +12,16 @@ import ai
 router = APIRouter()
 
 
+router.mount("/static", StaticFiles(directory="static"), name="static")
+
+
 class Query(BaseModel):
     q: str
+
+
+@router.get("/gui2")
+def gui2():
+    return FileResponse("gui/gui2.html")
 
 
 @router.get("/")

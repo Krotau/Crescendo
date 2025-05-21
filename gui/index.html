@@ -5,13 +5,17 @@
     <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
 </head>
 <style>
+    /* #fffcf2, #ccc5b9, #403d39, #252422, #eb5e28 */
     body {
         font-family: Arial, sans-serif;
-        background-color: #f4f4f4;
+        background-color: #ccc5b9;
         margin: 0;
         padding: 20px;
     }
     h1 {
+        color: #333;
+    }
+    h3 {
         color: #333;
     }
     form {
@@ -28,62 +32,55 @@
     }
     button {
         padding: 10px 15px;
-        background-color: #007BFF;
+        background-color: #403d39;
         color: white;
         border: none;
         cursor: pointer;
+        border-radius: 1fr;
     }
 </style>
 <body>
     <h1>Crescendo</h1>
-    <p>Crecendo GUI</p>
-    <form hx-post="/ask" hx-target="#response">
-        <input name="q" type="text" placeholder="ask something..." required>
-        <button type="submit">Submit</button>
-        <p id="response"></p>
+    <h3>Ask something...</h3>
+    <form action="" onsubmit="sendMessage(event)">
+        <input type="text" id="messageText" autocomplete="off"/>
+        <button>Send</button>
     </form>
+    <ul id='messages'>
+        <li></li>
+    </ul>
+    <button onclick="clearMessages(event)">Clear</button>
+    <script>
+        var ws = new WebSocket("ws://localhost:8000/ws");
+        ws.onmessage = function(event) {
+            var messages = document.getElementById('messages');
+            var msg_data = JSON.parse(event.data);
 
+            console.log(msg_data)
 
-    <h1>WebSocket Chat</h1>
-        <form action="" onsubmit="sendMessage(event)">
-            <input type="text" id="messageText" autocomplete="off"/>
-            <button>Send</button>
-        </form>
-        <ul id='messages'>
-            <li></li>
-        </ul>
-        <button onclick="clearMessages(event)">Clear</button>
-        <script>
-            var ws = new WebSocket("ws://localhost:8000/ws");
-            ws.onmessage = function(event) {
-                var messages = document.getElementById('messages');
-                var msg_data = JSON.parse(event.data);
-
-                console.log(msg_data)
-
-                if (!msg_data.done) {
-                    messages.lastElementChild.innerHTML = messages.lastElementChild.innerHTML + msg_data.msg
-                };
-                
-                if (msg_data.done) {
-                    var message = document.createElement('li')
-                    messages.appendChild(message)
-                };
+            if (!msg_data.done) {
+                messages.lastElementChild.innerHTML = messages.lastElementChild.innerHTML + msg_data.msg
             };
+            
+            if (msg_data.done) {
+                var message = document.createElement('li')
+                messages.appendChild(message)
+            };
+        };
 
-            function sendMessage(event) {
-                var input = document.getElementById("messageText")
-                ws.send(input.value)
-                input.value = ''
-                event.preventDefault()
-            }
+        function sendMessage(event) {
+            var input = document.getElementById("messageText")
+            ws.send(input.value)
+            input.value = ''
+            event.preventDefault()
+        }
 
-            function clearMessages(event) {
-                console.log("Clearing messages")
-                var messages = document.getElementById('messages')
-                
-                messages.innerHTML = "<li></li>";
-            }
-        </script>
+        function clearMessages(event) {
+            console.log("Clearing messages")
+            var messages = document.getElementById('messages')
+            
+            messages.innerHTML = "<li></li>";
+        }
+    </script>
     </body>
 </body>
