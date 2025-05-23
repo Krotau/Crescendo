@@ -1,13 +1,13 @@
-import { useAtom } from 'jotai';
+import { useAtom, useSetAtom } from 'jotai';
 
-import { textAtom, healthAtom, currentChatAtom, chatLogItem, chatLogAtom } from './atoms';
+import { textAtom, healthAtom, currentChatAtom, chatLogItem, chatLogAtom, contextSizeAtom } from './atoms';
 import { useMemo, useState } from 'react';
-import { useSetAtom } from 'jotai';
 
 
 interface serverData {
     msg: string,
     done: boolean,
+    context_size: number,
 }
 
 
@@ -24,6 +24,8 @@ const Chat = () => {
     const [chatLog, setChatLog] = useAtom(chatLogAtom);
 
     const [currentChat, setCurrentChat] = useAtom(currentChatAtom);
+
+    const setContextSize = useSetAtom(contextSizeAtom);
 
     const chatSocket = useMemo(() => {return new WebSocket('ws://localhost:8000/ws')}, []);
 
@@ -88,9 +90,6 @@ const Chat = () => {
 
         // console.log(newChatInfo)
 
-        
-
-
     }
 
     chatSocket.onopen = () => {
@@ -101,6 +100,8 @@ const Chat = () => {
         let data: serverData = JSON.parse(event.data)
 
         console.log("parsed data: " + data.msg + " " + data.done);
+
+        setContextSize(data.context_size)
 
         updateCurrentChat(data)
     }

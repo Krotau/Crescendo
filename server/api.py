@@ -69,10 +69,13 @@ async def generate(q: Query):
     return {"message": s}
 
 
+CONTEXT_SIZE = 40_000
+
+
 @router.websocket("/ws")
 async def generate_ws(websocket: WebSocket):
     await websocket.accept()
-    msgs = []
+    msgs: list[str] = []
     while True:
         data = await websocket.receive_text()
 
@@ -82,25 +85,28 @@ async def generate_ws(websocket: WebSocket):
         print("received message")
         msgs.append(data)
 
-        stream = await ai.generate_response_stream(
-            model="deepseek-r1:7b", question=data
-        )
+        stream = await ai.generate_response_stream(model="qwen3:30b-a3b", question=data)
 
         print("received response from model")
         async for msg in stream:
 
             if msg.message.content is not None and not msg.done:
+
+                msgs.append(msg.message.content)
+
                 to_send: dict[str, str | bool | None] = {
                     "msg": msg.message.content,
                     "done": msg.done,
+                    "context_size": str(len("".join(msgs))),
                 }
                 json_data = json.dumps(to_send)
                 print("Sending chunk: " + json_data)
                 await websocket.send_text(json_data)
             elif msg.done:
                 to_send: dict[str, str | bool | None] = {
-                    "msg": "Null",
+                    "msg": None,
                     "done": msg.done,
+                    "context_size": str(len("".join(msgs))),
                 }
                 json_data = json.dumps(to_send)
                 print("Sending chunk: " + json_data)
