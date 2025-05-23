@@ -1,14 +1,28 @@
 import './App.css';
+import Chat from './components/chat'
+import ChatLog from './components/chat_log';
+import Context from './components/context';
+
 
 const App = () => {
   return (
-    <div className="content">
-      <h1>Rsbuild with React</h1>
-      <p>Start building amazing things with Rsbuild.</p>
+    <>
 
-      now this is epic
+    <div className="chat_bg">
+
+        <Chat />
+
+        <ChatLog />
 
     </div>
+
+    <div className="server_info_bg">
+
+        <Context />
+    
+    </div>
+
+    </>
   );
 };
 

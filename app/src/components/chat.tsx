@@ -1,0 +1,143 @@
+import { useAtom } from 'jotai';
+
+import { textAtom, healthAtom, currentChatAtom, chatLogItem, chatLogAtom } from './atoms';
+import { useMemo, useState } from 'react';
+import { useSetAtom } from 'jotai';
+
+
+interface serverData {
+    msg: string,
+    done: boolean,
+}
+
+
+const Chat = () => {
+
+    const [text, setText] = useAtom(textAtom);
+
+    const [health, setHealth] = useAtom(healthAtom);
+
+    const [chats, setChats] = useState(0);
+
+    const [reasoning, setReasoning] = useState(false);
+
+    const [chatLog, setChatLog] = useAtom(chatLogAtom);
+
+    const [currentChat, setCurrentChat] = useAtom(currentChatAtom);
+
+    const chatSocket = useMemo(() => {return new WebSocket('ws://localhost:8000/ws')}, []);
+
+
+    const sendMessage = () => {
+        console.log("Sending message to api");
+
+        if (chats > 0) {
+            setChatLog([...chatLog, currentChat])
+        }
+
+        chatSocket.send(text);
+
+        setCurrentChat({
+            question: text,
+            ready: false,
+            answer: '',
+            reasoning: '',
+        });
+
+        setText('');
+        setChats(chats + 1);
+    }
+
+    const updateCurrentChat = (data: serverData) => {
+        if (data.done) {
+            return
+        }
+
+        let new_ready = data.done
+        
+        if (data.msg == '<think>') {
+            console.log("thinking...")
+            setReasoning(true)
+            return
+        }
+
+        if (data.msg == '</think>') {
+            console.log("done thinking!")
+            setReasoning(false)
+            return
+        }
+
+        let newChatInfo: chatLogItem
+        if (reasoning) {
+            let new_msg = currentChat.reasoning.concat(data.msg)
+            newChatInfo = {
+                ...currentChat,
+                reasoning: new_msg,
+                ready: new_ready,
+            }
+            setCurrentChat(newChatInfo)
+        } else {
+            let new_msg = currentChat.answer.concat(data.msg)
+            newChatInfo = {
+                ...currentChat,
+                answer: new_msg,
+                ready: new_ready,
+            }
+            setCurrentChat(newChatInfo)
+        }
+
+        // console.log(newChatInfo)
+
+        
+
+
+    }
+
+    chatSocket.onopen = () => {
+        setHealth(true)
+    }
+
+    chatSocket.onmessage = (event: MessageEvent<string>) => {
+        let data: serverData = JSON.parse(event.data)
+
+        console.log("parsed data: " + data.msg + " " + data.done);
+
+        updateCurrentChat(data)
+    }
+
+
+    // return () => {
+    //     chatSocket.close()
+    //     setHealth(false)
+    // }
+
+    return(
+        <>
+
+        { health ? ":)" : ":("}
+
+        <p>Ask something...</p>
+
+        <input 
+            type="text" 
+            id="messageText" 
+            autoComplete="off"
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                    sendMessage()
+                }
+            }}
+        />
+
+        <div className="chat_buttons">
+            <button onClick={() => sendMessage()}>Send</button>
+            <button>Clear Context</button>
+        </div>
+
+        </>
+    )
+}
+
+export default Chat;

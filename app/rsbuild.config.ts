@@ -4,12 +4,13 @@ import { pluginReact } from '@rsbuild/plugin-react';
 export default defineConfig({
   plugins: [pluginReact()],
   output: {
-    distPath: {
-      root: '../',
-      js: 'static',
-      html: 'static',
-      css: 'static',
-      image: 'static',
+    cleanDistPath: true,
+    assetPrefix: '/static/',
+    distPath: { 
+      root: '../static',
+      js: 'js',
+      css: 'css',
+      image: 'img',
     },
   },
 });
