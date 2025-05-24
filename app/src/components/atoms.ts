@@ -22,3 +22,5 @@ export const healthAtom = atom<boolean>(false)
 export const chatLogAtom = atom<chatLogItem[]>([])
 
 export const contextSizeAtom = atom<number>(0)
+
+export const fileMenuAtom = atom<boolean>(false)

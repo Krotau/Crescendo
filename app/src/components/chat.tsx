@@ -1,6 +1,6 @@
 import { useAtom, useSetAtom } from 'jotai';
 
-import { textAtom, healthAtom, currentChatAtom, chatLogItem, chatLogAtom, contextSizeAtom } from './atoms';
+import { textAtom, healthAtom, currentChatAtom, chatLogItem, chatLogAtom, contextSizeAtom, fileMenuAtom } from './atoms';
 import { useMemo, useState } from 'react';
 
 
@@ -24,6 +24,8 @@ const Chat = () => {
     const [chatLog, setChatLog] = useAtom(chatLogAtom);
 
     const [currentChat, setCurrentChat] = useAtom(currentChatAtom);
+
+    let [open, setOpen] = useAtom(fileMenuAtom);
 
     const setContextSize = useSetAtom(contextSizeAtom);
 
@@ -135,6 +137,7 @@ const Chat = () => {
         <div className="chat_buttons">
             <button onClick={() => sendMessage()}>Send</button>
             <button>Clear Context</button>
+            <button onClick={() => {setOpen(!open)}}>File Menu</button>
         </div>
 
         </>

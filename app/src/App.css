@@ -4,11 +4,14 @@
     background-color: #ccc5b9;
     margin: 0;
     padding: 0;
+    margin-left: 5vw;
+    margin-right: 5vw;
     width: 100%;
     height: 100vh;
     display: flex;
     align-items: stretch;
     overflow: hidden;
+    box-shadow: 0 15px 36px rgba(0,0,0,0.37), 0 15px 36px rgba(0,0,0,0.22);
 }
 
 body {
@@ -70,9 +73,29 @@ p {
     padding: 2em;
 }
 
+.serverinfo_context_container {
+    border: 1px solid #2D3047;
+    border-radius: 0.8em;
+    padding: 1em;
+}
+
+
+.context_container {
+    background-color: gray;
+    border-radius: 0.8em;
+    max-height: 0.5vh;
+    min-width: 100%;
+    display: flex;
+    border: 1px solid #8effb4
+}
+
 .context_bar {
-    background-color: red;
-    flex-grow: 5;
+    background-color: rgb(165, 58, 81);
+    display: flex;
+    align-items: baseline;
+    border-radius: 0.8em;
+    /* min-width: 1px; */
+    max-height: 0.5vh;
 }
 
 .chat_buttons {
@@ -136,4 +159,71 @@ p {
 
 ::-webkit-scrollbar-thumb:hover{
 	background-color: #909090;
+}
+
+.overlay_background {
+  /* Height & width depends on how you want to reveal the overlay (see JS below) */   
+  height: 100%;
+  position: fixed; /* Stay in place */
+  z-index: 5;
+  left: 0;
+  top: 0;
+  backdrop-filter: blur(2px);
+  background-color: rgba(153, 143, 143, 0.56); /* Black w/opacity */
+  overflow-x: hidden; /* Disable horizontal scroll */
+  transition: all 0.4s cubic-bezier(.25,.8,.25,1);
+}
+
+.overlay {
+  /* Height & width depends on how you want to reveal the overlay (see JS below) */   
+  height: 100%;
+  position: fixed; /* Stay in place */
+  z-index: 20; /* Sit on top */
+  left: 0;
+  top: 0;
+  background-color: #b64518; /* Black fallback color */
+  overflow-x: hidden; /* Disable horizontal scroll */
+  transition: 0.5s; /* 0.5 second transition effect to slide in or slide down the overlay (height or width, depending on reveal) */
+  border-radius: 0 1.6em 1.6em 0;
+  display: flex;
+  align-items: start;
+  box-shadow: 0 30px 200px rgba(0,0,0,0.37), 0 15px 600px rgba(0,0,0,0.22);
+  transition: all 0.6s cubic-bezier(.25,.8,.25,1);
+}
+
+.hide {
+    display: none
+}
+
+.show {
+    position: fixed;
+    display: flex;
+    align-items: start;
+    flex-direction: column;
+}
+
+.closed {
+    width: 0;
+}
+
+.open_bg {
+    width: 100%;
+}
+
+.open_menu {
+    width: 40%
+}
+
+
+
+/* Position the close button (top right corner) */
+.overlay .closebtn {
+  position: absolute;
+  top: 20px;
+  right: 45px;
+  font-size: 60px;
+}
+
+.hide {
+    display: none;
 }

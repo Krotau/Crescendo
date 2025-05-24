@@ -9,7 +9,6 @@ const ChatLog = () => {
 
     return (
         <div className="chat_log">
-            <p>Chat Log</p>
 
             <div className="chat_item">
 
@@ -22,6 +21,8 @@ const ChatLog = () => {
                     <button>Play</button>
                     <button>Expand</button>
                 </div>
+
+                <p>Chat Log</p>
 
                 {
                     chatLog.map((logItem) => {
