@@ -44,24 +44,24 @@ class Envoy:
         self.tools: list[ToolConfig] = []
         self.functions = dict()
 
-    def register(self, description: str, toolParameters: ToolParameters):
+    def register(self, description: str, tool_parameters: ToolParameters):
 
-        def wrapper(toolFunc: Callable[P, U]) -> Callable[P, U]:
+        def wrapper(tool_func: Callable[P, U]) -> Callable[P, U]:
 
             tool_descriptor = ToolConfig(
                 type=ToolType.function,
                 function=FunctionConfig(
-                    name=toolFunc.__name__,
+                    name=tool_func.__name__,
                     description=description,
-                    parameters=toolParameters,
+                    parameters=tool_parameters,
                 ),
             )
 
             print(tool_descriptor.model_dump_json(indent=2))
 
             self.tools.append(tool_descriptor)
-            self.functions.update({toolFunc.__name__: toolFunc})
-            return toolFunc
+            self.functions.update({tool_func.__name__: tool_func})
+            return tool_func
 
         return wrapper
 
