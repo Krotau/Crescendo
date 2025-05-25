@@ -53,10 +53,6 @@ const Chat = () => {
     }
 
     const updateCurrentChat = (data: serverData) => {
-        if (data.done) {
-            return
-        }
-
         let new_ready = data.done
         
         if (data.msg == '<think>') {

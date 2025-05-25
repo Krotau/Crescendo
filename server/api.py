@@ -3,6 +3,7 @@ import json
 from typing import Annotated
 
 from fastapi import Form, HTTPException, WebSocket
+from ollama import AsyncClient
 from pydantic import BaseModel
 from starlette.responses import FileResponse
 
@@ -13,6 +14,50 @@ from fastapi import APIRouter
 
 
 router = APIRouter()
+
+envoy = ai.Envoy(AsyncClient())
+
+
+add_param_descriptor = ai.ToolParameters.model_validate(
+    {
+        "type": "object",
+        "properties": {
+            "a": {
+                "type": "number",
+                "description": "first number",
+            },
+            "b": {
+                "type": "number",
+                "description": "second number",
+            },
+        },
+        "required": ["a", "b"],
+    }
+)
+
+
+@envoy.register("add two numbers", add_param_descriptor)
+def add(x: int, y: int) -> int:
+    return x + y
+
+
+weather_param_descriptor = ai.ToolParameters.model_validate(
+    {
+        "type": "object",
+        "properties": {
+            "city": {
+                "type": "string",
+                "description": "The name of the city",
+            },
+        },
+        "required": ["city"],
+    }
+)
+
+
+@envoy.register("Get the current weather for a city", weather_param_descriptor)
+def get_current_weather(city: str):
+    return f"it is 20 degrees celcius in {city}"
 
 
 class Query(BaseModel):
@@ -70,7 +115,6 @@ async def generate(q: Query):
 
 
 CONTEXT_SIZE = 40_000
-
 MODEL_SFW = "qwen3:30b-a3b"
 MODEL_NSFW_1 = "goekdenizguelmez/JOSIEFIED-Qwen3:8b"
 MODEL_NSFW_2 = "huihui_ai/qwen3-abliterated:16b"
@@ -79,7 +123,7 @@ MODEL_NSFW_2 = "huihui_ai/qwen3-abliterated:16b"
 @router.websocket("/ws")
 async def generate_ws(websocket: WebSocket):
     await websocket.accept()
-    msgs: list[str] = []
+    full_context: list[str] = []
     while True:
         data = await websocket.receive_text()
 
@@ -87,22 +131,24 @@ async def generate_ws(websocket: WebSocket):
             continue
 
         print("received message")
-        msgs.append(data)
+        full_context.append(data)
 
-        context = "".join(msgs)
+        context = "".join(full_context)
         context_len = len(context)
-        stream = await ai.generate_response_stream(
+        stream = await envoy.generate_response_stream(
             model=MODEL_SFW, question=data, ctx=context
         )
 
         print("received response from model")
         async for msg in stream:
 
+            print(msg.message)
+
             if msg.message.content is not None and not msg.done:
 
-                msgs.append(msg.message.content)
+                full_context.append(msg.message.content)
 
-                context = "".join(msgs)
+                context = "".join(full_context)
                 context_len = len(context)
 
                 to_send: dict[str, str | bool | int | None] = {
@@ -111,11 +157,10 @@ async def generate_ws(websocket: WebSocket):
                     "context_size": context_len,
                 }
                 json_data = json.dumps(to_send)
-                print("Sending chunk: " + json_data)
                 await websocket.send_text(json_data)
             elif msg.done:
                 to_send: dict[str, str | bool | int | None] = {
-                    "msg": None,
+                    "msg": msg.message.content,
                     "done": msg.done,
                     "context_size": context_len,
                 }

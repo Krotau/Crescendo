@@ -42,6 +42,7 @@ class Envoy:
     def __init__(self, client: AsyncClient) -> None:
         self.client = client
         self.tools: list[ToolConfig] = []
+        self.functions = dict()
 
     def register(self, description: str, toolParameters: ToolParameters):
 
@@ -59,6 +60,7 @@ class Envoy:
             print(tool_descriptor.model_dump_json(indent=2))
 
             self.tools.append(tool_descriptor)
+            self.functions.update({toolFunc.__name__: toolFunc})
             return toolFunc
 
         return wrapper
@@ -82,6 +84,41 @@ class Envoy:
 
             print("\n")
         print("===================================")
+
+    async def generate_response_stream(self, model: str, question: str, ctx: str):
+        print("Creating Async Client")
+
+        formatted_prompt = f"""The context consists of previous questions from the
+            user and answers you have given to the user. Please include the context when
+            generating a new answer. 
+            
+            Context: {ctx}\n\n
+            
+            Question: {question}\n\n
+
+            When generating an answer, please do not use any fancy symbols or formatting.
+            Keep it plain text.
+            """
+
+        # TODO: make tool call work with a message history
+        #   - messages[]   ->    a message history
+        #  https://github.com/ollama/ollama-python/blob/main/examples/async-tools.py
+
+        print("generating response")
+        response_stream: AsyncIterator[ChatResponse] = await self.client.chat(
+            model=model,
+            stream=True,
+            messages=[
+                {
+                    "role": "user",
+                    "content": formatted_prompt,
+                },
+            ],
+            tools=[tool.model_dump() for tool in self.tools],
+        )
+
+        print("Done generating")
+        return response_stream
 
 
 def generate_response(model: str, question: str) -> str:
@@ -111,37 +148,6 @@ def generate_response(model: str, question: str) -> str:
     # remove <think> tags
     response_content: str = remove_think_tags(response)
     return response_content
-
-
-async def generate_response_stream(model: str, question: str, ctx: str):
-    print("Creating Async Client")
-
-    formatted_prompt = f"""The context consists of previous questions from the
-        user and answers you have given to the user. Please include the context when
-        generating a new answer. 
-        
-        Context: {ctx}\n\n
-        
-        Question: {question}\n\n
-
-        When generating an answer, please do not use any fancy symbols or formatting.
-        Keep it plain text.
-        """
-
-    print("generating response")
-    response_stream: AsyncIterator[ChatResponse] = await AsyncClient().chat(
-        model=model,
-        stream=True,
-        messages=[
-            {
-                "role": "user",
-                "content": formatted_prompt,
-            },
-        ],
-    )
-
-    print("Done generating")
-    return response_stream
 
 
 def remove_think_tags(response: ChatResponse) -> str:
