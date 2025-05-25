@@ -1,32 +1,87 @@
 import re
-from typing import AsyncIterator
+from enum import Enum
+
+from typing import Any, AsyncIterator, Callable, List, TypeVar, ParamSpec
 
 from ollama import chat, ChatResponse, AsyncClient
-from ollama import ListResponse, list
+from ollama import ListResponse
 
 from kokoro import KPipeline
+from pydantic import BaseModel
 import soundfile as sf
 
 
-def print_models():
-    models: ListResponse = list()
-    print("Available models:")
+T = TypeVar("T")
+U = TypeVar("U")
+P = ParamSpec("P")
 
-    print("===================================")
-    for model in models.models:
-        print("Name:", model.model)
 
-        if model.size:
-            print("  Size (MB):", f"{(model.size.real / 1024 / 1024):.2f}")
+class ToolType(str, Enum):
+    function = "function"
+    object = "object"
 
-        if model.details:
-            print("  Format:", model.details.format)
-            print("  Family:", model.details.family)
-            print("  Parameter Size:", model.details.parameter_size)
-            print("  Quantization Level:", model.details.quantization_level)
 
-        print("\n")
-    print("===================================")
+class ToolParameters(BaseModel):
+    type: ToolType
+    properties: Any
+    required: List[str]
+
+
+class FunctionConfig(BaseModel):
+    name: str
+    description: str
+    parameters: ToolParameters
+
+
+class ToolConfig(BaseModel):
+    type: ToolType
+    function: FunctionConfig
+
+
+class Envoy:
+    def __init__(self, client: AsyncClient) -> None:
+        self.client = client
+        self.tools: list[ToolConfig] = []
+
+    def register(self, description: str, toolParameters: ToolParameters):
+
+        def wrapper(toolFunc: Callable[P, U]) -> Callable[P, U]:
+
+            tool_descriptor = ToolConfig(
+                type=ToolType.function,
+                function=FunctionConfig(
+                    name=toolFunc.__name__,
+                    description=description,
+                    parameters=toolParameters,
+                ),
+            )
+
+            print(tool_descriptor.model_dump_json(indent=2))
+
+            self.tools.append(tool_descriptor)
+            return toolFunc
+
+        return wrapper
+
+    async def print_models(self):
+        models: ListResponse = await self.client.list()
+        print("Available models:")
+
+        print("===================================")
+        for model in models.models:
+            print("Name:", model.model)
+
+            if model.size:
+                print("  Size (MB):", f"{(model.size.real / 1024 / 1024):.2f}")
+
+            if model.details:
+                print("  Format:", model.details.format)
+                print("  Family:", model.details.family)
+                print("  Parameter Size:", model.details.parameter_size)
+                print("  Quantization Level:", model.details.quantization_level)
+
+            print("\n")
+        print("===================================")
 
 
 def generate_response(model: str, question: str) -> str:
@@ -58,8 +113,20 @@ def generate_response(model: str, question: str) -> str:
     return response_content
 
 
-async def generate_response_stream(model: str, question: str):
+async def generate_response_stream(model: str, question: str, ctx: str):
     print("Creating Async Client")
+
+    formatted_prompt = f"""The context consists of previous questions from the
+        user and answers you have given to the user. Please include the context when
+        generating a new answer. 
+        
+        Context: {ctx}\n\n
+        
+        Question: {question}\n\n
+
+        When generating an answer, please do not use any fancy symbols or formatting.
+        Keep it plain text.
+        """
 
     print("generating response")
     response_stream: AsyncIterator[ChatResponse] = await AsyncClient().chat(
@@ -68,7 +135,7 @@ async def generate_response_stream(model: str, question: str):
         messages=[
             {
                 "role": "user",
-                "content": question,
+                "content": formatted_prompt,
             },
         ],
     )

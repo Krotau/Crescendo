@@ -71,6 +71,10 @@ async def generate(q: Query):
 
 CONTEXT_SIZE = 40_000
 
+MODEL_SFW = "qwen3:30b-a3b"
+MODEL_NSFW_1 = "goekdenizguelmez/JOSIEFIED-Qwen3:8b"
+MODEL_NSFW_2 = "huihui_ai/qwen3-abliterated:16b"
+
 
 @router.websocket("/ws")
 async def generate_ws(websocket: WebSocket):
@@ -85,7 +89,11 @@ async def generate_ws(websocket: WebSocket):
         print("received message")
         msgs.append(data)
 
-        stream = await ai.generate_response_stream(model="qwen3:30b-a3b", question=data)
+        context = "".join(msgs)
+        context_len = len(context)
+        stream = await ai.generate_response_stream(
+            model=MODEL_SFW, question=data, ctx=context
+        )
 
         print("received response from model")
         async for msg in stream:
@@ -94,19 +102,22 @@ async def generate_ws(websocket: WebSocket):
 
                 msgs.append(msg.message.content)
 
-                to_send: dict[str, str | bool | None] = {
+                context = "".join(msgs)
+                context_len = len(context)
+
+                to_send: dict[str, str | bool | int | None] = {
                     "msg": msg.message.content,
                     "done": msg.done,
-                    "context_size": str(len("".join(msgs))),
+                    "context_size": context_len,
                 }
                 json_data = json.dumps(to_send)
                 print("Sending chunk: " + json_data)
                 await websocket.send_text(json_data)
             elif msg.done:
-                to_send: dict[str, str | bool | None] = {
+                to_send: dict[str, str | bool | int | None] = {
                     "msg": None,
                     "done": msg.done,
-                    "context_size": str(len("".join(msgs))),
+                    "context_size": context_len,
                 }
                 json_data = json.dumps(to_send)
                 print("Sending chunk: " + json_data)
