@@ -11,18 +11,39 @@ interface serverChatResponse {
     context_size: number,
 }
 
-const serverResponseSchema = z.object({
+
+const serverChatResponseSchema = z.object({
     msg: z.string(),
     done: z.boolean(),
     context_size: z.number(),
 })
 
 
-interface serverToolResponse {
-    tool: string,
-    external: boolean,
-    parameters: [string, string][]
+interface serverToolInit {
+    tool_name: string,
+    tool_arguments: {},
 }
+
+
+const serverToolInitSchema = z.object({
+    tool_name: z.string(),
+    tool_arguments: z.object(),
+})
+
+
+interface serverResponse {
+    kind: 'tool_init' | 'tool_result' | 'message',
+    payload: any
+}
+
+
+type ServerPayloads = typeof serverToolInitSchema | typeof serverResponseSchema
+
+
+const serverResponseSchema = z.object({
+    kind: z.literal(["tool_init", "tool_result", "message"]),
+    payload: z.object()
+})
 
 
 const Chat = () => {
@@ -66,6 +87,7 @@ const Chat = () => {
         setChats(chats + 1);
     }
 
+
     const updateCurrentChat = (data: serverChatResponse) => {
         let new_ready = data.done
         
@@ -100,33 +122,32 @@ const Chat = () => {
             setCurrentChat(newChatInfo)
         }
 
-        // console.log(newChatInfo)
-
     }
+
 
     chatSocket.onopen = () => {
         setHealth(true)
     }
 
+
     chatSocket.onmessage = (event: MessageEvent<string>) => {
-        console.log(`Parsing raw data: ${event.data}`);
         let raw_data = JSON.parse(event.data)
 
-        console.log("Parsing data with zod schema");
-        let data: serverChatResponse = serverResponseSchema.parse(raw_data)
+        let data: serverResponse = serverResponseSchema.parse(raw_data)
 
-        console.log("parsed data: " + data.msg + " " + data.done);
+        if (data.kind === 'message') {
+            const payload: serverChatResponse = serverChatResponseSchema.parse(raw_data.payload)
 
-        setContextSize(data.context_size)
+            setContextSize(payload.context_size)
 
-        updateCurrentChat(data)
+            updateCurrentChat(payload)
+
+        } else {
+            console.log(raw_data)
+        }
+
     }
 
-
-    // return () => {
-    //     chatSocket.close()
-    //     setHealth(false)
-    // }
 
     return(
         <>

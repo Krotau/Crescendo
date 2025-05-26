@@ -15,6 +15,7 @@ T = TypeVar("T")
 U = TypeVar("U")
 P = ParamSpec("P")
 
+
 EXPR = r"<think>.*?</think>\n?"
 
 
@@ -44,7 +45,7 @@ class Envoy:
     def __init__(self, client: AsyncClient) -> None:
         self.client = client
         self.tools: list[ToolConfig] = []
-        self.functions = dict()
+        self.functions: dict[str, Callable] = dict()
 
     def register(self, description: str, tool_parameters: ToolParameters):
 
@@ -59,10 +60,10 @@ class Envoy:
                 ),
             )
 
-            print(tool_descriptor.model_dump_json(indent=2))
-
             self.tools.append(tool_descriptor)
             self.functions.update({tool_func.__name__: tool_func})
+            
+            print("\nAdded tool: " + tool_descriptor.model_dump_json(indent=2))
             return tool_func
 
         return wrapper
@@ -87,7 +88,7 @@ class Envoy:
             print("\n")
         print("===================================")
 
-    async def generate_response_stream(self, model: str, messages, ctx: str, enable_tools: bool):
+    async def generate_response_stream(self, model: str, messages, enable_tools: bool):
         print("Creating Async Client")
 
         # formatted_prompt = f"""The context consists of previous questions from the

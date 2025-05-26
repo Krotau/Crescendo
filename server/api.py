@@ -10,6 +10,8 @@ import server.ai as ai
 
 from fastapi import APIRouter
 
+from server.helpers import WebsocketHelper
+
 
 router = APIRouter()
 
@@ -34,7 +36,7 @@ add_param_descriptor = ai.ToolParameters.model_validate(
 )
 
 
-@envoy.register("add two numbers", add_param_descriptor)
+@envoy.register("add two numbers together, no matter their size", add_param_descriptor)
 def add(x: int, y: int) -> int:
     return x + y
 
@@ -125,65 +127,74 @@ async def send_to_webclient(response: ChatResponse, full_context, websocket):
 @router.websocket("/ws")
 async def generate_ws(websocket: WebSocket):
     await websocket.accept()
-    full_context: list[str] = []
+    # full_context: list[str] = []
     while True:
-        data = await websocket.receive_text()
-        if data is None:
-            continue
+        helper = WebsocketHelper(websocket, envoy)
+        data = await helper.socket.receive_text()
+        helper.messages.append(Message.model_validate({'role': 'user', 'content': data}))
+        stream = await helper.get_stream(enable_tools=True)
+        await helper.parse_stream(stream)
 
-        messages: list[Message] = [Message.model_validate({'role': 'user', 'content': data})]
+
+        # data = await websocket.receive_text()
+        # if data is None:
+        #     continue
+
+        # messages: list[Message] = [Message.model_validate({'role': 'user', 'content': data})]
         
-        print("Received message...")
-        full_context.append(data)
+        # print("Received message...")
+        # full_context.append(data)
 
-        context = "".join(full_context)
-        # context_len = len(context)
-        stream = await envoy.generate_response_stream(
-            model=MODEL_SFW, messages=messages, ctx=context, enable_tools=True
-        )
+        # context = "".join(full_context)
+        # # context_len = len(context)
 
-
-        # TODO: Make flow control beter (less if-statements)
-
-        print("Model thinking...")
-        async for response in stream:
-
-            print("Response part:")
-
-            output = None  # Initialize output to avoid unbound error
-            final_response = None # Initialize output to avoid unbound error
-
-            if response.message.tool_calls:                
-                # TODO: 2 types of response data to sync with client
-                #  - normal responses (msg, done, context_size)
-                #  - tool responses (tool being used, external/interal (enum), )
+        # stream = await envoy.generate_response_stream(
+        #     model=MODEL_SFW, messages=messages, enable_tools=True
+        # )
 
 
-                for index, tool in enumerate(response.message.tool_calls):
-                    if function_to_call := envoy.functions.get(tool.function.name):
-                        print(' - - Calling function:', tool.function.name)
-                        print(' - - Arguments:', tool.function.arguments)
-                        output = function_to_call(**tool.function.arguments)
-                        print(' - - Function output:', output)
+        # # TODO: Make flow control beter (less if-statements)
 
-                        # Add the function response to messages for the model to use
-                        messages.append(response.message)
-                        messages.append(Message.model_validate({'role': 'tool', 'content': str(output), 'name': tool.function.name}))
-                    else:
-                        print(' - - Error! Function', tool.function.name, 'not found')
+        # print("Model thinking...")
+        # async for response in stream:
 
-                    print("\n\n")
+        #     print("Response part:")
 
-                if output is not None:
-                    # Get final response from model with function outputs
-                    final_stream = await envoy.generate_response_stream(model=MODEL_SFW, messages=messages, ctx=context, enable_tools=False)
-                    async for final_response in final_stream:
-                        print('Sending Chunk:', final_response.message.content)
-                        await send_to_webclient(final_response, full_context, websocket) 
+        #     output = None  # Initialize output to avoid unbound error
+        #     final_response = None # Initialize output to avoid unbound error
+
+        #     if response.message.tool_calls:                
+        #         # TODO: 2 types of response data to sync with client
+        #         #  - normal responses (msg, done, context_size)
+        #         #  - tool responses (tool being used, external/interal (enum), )
+
+        #         print(response)
+
+        #         for index, tool in enumerate(response.message.tool_calls):
+        #             if function_to_call := envoy.functions.get(tool.function.name):
+        #                 print(' - - Calling function:', tool.function.name)
+        #                 print(' - - Arguments:', tool.function.arguments)
+        #                 output = function_to_call(**tool.function.arguments)
+        #                 print(' - - Function output:', output)
+
+        #                 # Add the function response to messages for the model to use
+        #                 messages.append(response.message)
+        #                 messages.append(Message.model_validate({'role': 'tool', 'content': str(output), 'name': tool.function.name}))
+        #             else:
+        #                 print(' - - Error! Function', tool.function.name, 'not found')
+
+        #             print("\n\n")
+
+        #         if output is not None:
+        #             # Get final response from model with function outputs
+        #             final_stream = await envoy.generate_response_stream(model=MODEL_SFW, messages=messages, enable_tools=False)
+        #             async for final_response in final_stream:
+        #                 print('Sending Chunk:', final_response.message.content)
+        #                 await send_to_webclient(final_response, full_context, websocket) 
                 
-            else:
-                await send_to_webclient(response, full_context, websocket)
+        #     else:
+        #         await send_to_webclient(response, full_context, websocket)
 
 
-        # msgs.append(data)
-        # await websocket.send_text(f"Message text was: {msgs}")
+        # # msgs.append(data)
+        # # await websocket.send_text(f"Message text was: {msgs}")
