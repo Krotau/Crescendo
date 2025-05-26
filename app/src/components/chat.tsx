@@ -1,13 +1,27 @@
 import { useAtom, useSetAtom } from 'jotai';
+import { z } from 'zod/v4';
 
 import { textAtom, healthAtom, currentChatAtom, chatLogItem, chatLogAtom, contextSizeAtom, fileMenuAtom } from './atoms';
 import { useMemo, useState } from 'react';
 
 
-interface serverData {
+interface serverChatResponse {
     msg: string,
     done: boolean,
     context_size: number,
+}
+
+const serverResponseSchema = z.object({
+    msg: z.string(),
+    done: z.boolean(),
+    context_size: z.number(),
+})
+
+
+interface serverToolResponse {
+    tool: string,
+    external: boolean,
+    parameters: [string, string][]
 }
 
 
@@ -52,7 +66,7 @@ const Chat = () => {
         setChats(chats + 1);
     }
 
-    const updateCurrentChat = (data: serverData) => {
+    const updateCurrentChat = (data: serverChatResponse) => {
         let new_ready = data.done
         
         if (data.msg == '<think>') {
@@ -95,7 +109,11 @@ const Chat = () => {
     }
 
     chatSocket.onmessage = (event: MessageEvent<string>) => {
-        let data: serverData = JSON.parse(event.data)
+        console.log(`Parsing raw data: ${event.data}`);
+        let raw_data = JSON.parse(event.data)
+
+        console.log("Parsing data with zod schema");
+        let data: serverChatResponse = serverResponseSchema.parse(raw_data)
 
         console.log("parsed data: " + data.msg + " " + data.done);
 
