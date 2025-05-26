@@ -1,8 +1,6 @@
 import json
 
-from typing import Annotated
-
-from fastapi import Form, HTTPException, WebSocket
+from fastapi import WebSocket
 from ollama import AsyncClient, ChatResponse, Message
 from pydantic import BaseModel
 from starlette.responses import FileResponse
@@ -83,35 +81,6 @@ def health() -> dict:
         dict: A message indicating the server is running.
     """
     return {"message": "Server is running!"}
-
-
-@router.post("/ask")
-async def ask(q: Annotated[str, Form()]):
-    print("Received data:", q)
-
-    s = create_response(q)
-    return {"message": s}
-
-
-@router.post("/generate")
-async def generate(q: Query):
-    """
-    Call the ollama client to generate a response
-
-    Args:
-        q (str): The input query string.
-
-    Returns:
-        dict: The generated response.
-
-    """
-
-    # Check if the query is empty
-    if not q.q:
-        raise HTTPException(status_code=400, detail="Query cannot be empty")
-
-    s = create_response(q.q)
-    return {"message": s}
 
 
 CONTEXT_SIZE = 40_000
@@ -223,32 +192,3 @@ async def generate_ws(websocket: WebSocket):
 
         # msgs.append(data)
         # await websocket.send_text(f"Message text was: {msgs}")
-
-
-def create_response(message: str) -> str | None:
-    """
-    Create a response dictionary.
-
-    Args:
-        message (str): The message to include in the response.
-
-    Returns:
-        dict: A dictionary containing the message.
-    """
-
-    print("Received query:", message)
-    if message is None:
-        return HTTPException(status_code=400, detail="Query string is required")
-
-    # options for model:
-    # - deepseek-r1:latest
-    # - deepseek-r1:1.5b
-    # - deepseek-r1:7b
-    # - deepseek-r1:8b
-    # - deepseek-r1:14b
-
-    text = ai.generate_response(model="deepseek-r1:7b", question=message)
-    
-    if text:
-        ai.generate_audio(text)
-        return "Generated .wav at server with TTS: " + text
