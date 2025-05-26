@@ -87,7 +87,7 @@ class Envoy:
             print("\n")
         print("===================================")
 
-    async def generate_response_stream(self, model: str, messages, ctx: str):
+    async def generate_response_stream(self, model: str, messages, ctx: str, enable_tools: bool):
         print("Creating Async Client")
 
         # formatted_prompt = f"""The context consists of previous questions from the
@@ -102,11 +102,17 @@ class Envoy:
         #     Keep it plain text.
         #     """
         print("generating response")
+
+        tools = None
+        if enable_tools:
+            print("- - - - Running with Tools enable internally")
+            tools = [tool.model_dump() for tool in self.tools]
+
         response_stream: AsyncIterator[ChatResponse] = await self.client.chat(
             model=model,
             stream=True,
             messages=messages,
-            tools=[tool.model_dump() for tool in self.tools],
+            tools=tools,
         )
 
         print("Done generating")

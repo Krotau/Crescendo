@@ -139,7 +139,7 @@ async def generate_ws(websocket: WebSocket):
         context = "".join(full_context)
         # context_len = len(context)
         stream = await envoy.generate_response_stream(
-            model=MODEL_SFW, messages=messages, ctx=context
+            model=MODEL_SFW, messages=messages, ctx=context, enable_tools=True
         )
 
 
@@ -153,15 +153,13 @@ async def generate_ws(websocket: WebSocket):
             output = None  # Initialize output to avoid unbound error
             final_response = None # Initialize output to avoid unbound error
 
-            if response.message.tool_calls:
-
-                
+            if response.message.tool_calls:                
                 # TODO: 2 types of response data to sync with client
                 #  - normal responses (msg, done, context_size)
                 #  - tool responses (tool being used, external/interal (enum), )
 
 
-                for tool in response.message.tool_calls:
+                for index, tool in enumerate(response.message.tool_calls):
                     if function_to_call := envoy.functions.get(tool.function.name):
                         print(' - - Calling function:', tool.function.name)
                         print(' - - Arguments:', tool.function.arguments)
@@ -177,13 +175,10 @@ async def generate_ws(websocket: WebSocket):
                     print("\n\n")
 
                 if output is not None:
-
-
-
                     # Get final response from model with function outputs
-                    final_stream = await envoy.generate_response_stream(model=MODEL_SFW, messages=messages, ctx=context)
+                    final_stream = await envoy.generate_response_stream(model=MODEL_SFW, messages=messages, ctx=context, enable_tools=False)
                     async for final_response in final_stream:
-                        print('Final response:', final_response.message.content)
+                        print('Sending Chunk:', final_response.message.content)
                         await send_to_webclient(final_response, full_context, websocket) 
                 
             else:
