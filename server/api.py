@@ -3,7 +3,7 @@ import json
 from typing import Annotated
 
 from fastapi import Form, HTTPException, WebSocket
-from ollama import AsyncClient
+from ollama import AsyncClient, ChatResponse, Message
 from pydantic import BaseModel
 from starlette.responses import FileResponse
 
@@ -22,16 +22,16 @@ add_param_descriptor = ai.ToolParameters.model_validate(
     {
         "type": "object",
         "properties": {
-            "a": {
+            "x": {
                 "type": "number",
                 "description": "first number",
             },
-            "b": {
+            "y": {
                 "type": "number",
                 "description": "second number",
             },
         },
-        "required": ["a", "b"],
+        "required": ["x", "y"],
     }
 )
 
@@ -120,61 +120,112 @@ MODEL_NSFW_1 = "goekdenizguelmez/JOSIEFIED-Qwen3:8b"
 MODEL_NSFW_2 = "huihui_ai/qwen3-abliterated:16b"
 
 
+
+async def send_to_webclient(response: ChatResponse, full_context, websocket):
+    context = "".join(full_context)
+    context_len = len(context)
+
+    if response.message.content is None:
+        return
+    
+    parsed_resp = ai.remove_think_tags(response.message.content)
+
+    if response.message.content and not response.done:
+        full_context.append(response.message.content)
+
+        to_send: dict[str, str | bool | int | None] = {
+            "msg": parsed_resp,
+            "done": response.done,
+            "context_size": context_len,
+        }
+        json_data = json.dumps(to_send)
+        await websocket.send_text(json_data)
+    elif response.done:
+        to_send: dict[str, str | bool | int | None] = {
+            "msg": parsed_resp,
+            "done": response.done,
+            "context_size": context_len,
+        }
+        json_data = json.dumps(to_send)
+        await websocket.send_text(json_data)
+    else:
+        print(response)
+        await websocket.send_text("Something went wrong, please reload.")
+
+
 @router.websocket("/ws")
 async def generate_ws(websocket: WebSocket):
     await websocket.accept()
     full_context: list[str] = []
     while True:
         data = await websocket.receive_text()
-
         if data is None:
             continue
 
-        print("received message")
+        messages: list[Message] = [Message.model_validate({'role': 'user', 'content': data})]
+        
+        print("Received message...")
         full_context.append(data)
 
         context = "".join(full_context)
-        context_len = len(context)
+        # context_len = len(context)
         stream = await envoy.generate_response_stream(
-            model=MODEL_SFW, question=data, ctx=context
+            model=MODEL_SFW, messages=messages, ctx=context
         )
 
-        print("received response from model")
-        async for msg in stream:
 
-            print(msg.message)
+        # TODO: Make flow control beter (less if-statements)
 
-            if msg.message.content is not None and not msg.done:
+        print("Model thinking...")
+        async for response in stream:
 
-                full_context.append(msg.message.content)
+            print("Response part:")
 
-                context = "".join(full_context)
-                context_len = len(context)
+            output = None  # Initialize output to avoid unbound error
+            final_response = None # Initialize output to avoid unbound error
 
-                to_send: dict[str, str | bool | int | None] = {
-                    "msg": msg.message.content,
-                    "done": msg.done,
-                    "context_size": context_len,
-                }
-                json_data = json.dumps(to_send)
-                await websocket.send_text(json_data)
-            elif msg.done:
-                to_send: dict[str, str | bool | int | None] = {
-                    "msg": msg.message.content,
-                    "done": msg.done,
-                    "context_size": context_len,
-                }
-                json_data = json.dumps(to_send)
-                print("Sending chunk: " + json_data)
-                await websocket.send_text(json_data)
+            if response.message.tool_calls:
+
+                
+                # TODO: 2 types of response data to sync with client
+                #  - normal responses (msg, done, context_size)
+                #  - tool responses (tool being used, external/interal (enum), )
+
+
+                for tool in response.message.tool_calls:
+                    if function_to_call := envoy.functions.get(tool.function.name):
+                        print(' - - Calling function:', tool.function.name)
+                        print(' - - Arguments:', tool.function.arguments)
+                        output = function_to_call(**tool.function.arguments)
+                        print(' - - Function output:', output)
+
+                        # Add the function response to messages for the model to use
+                        messages.append(response.message)
+                        messages.append(Message.model_validate({'role': 'tool', 'content': str(output), 'name': tool.function.name}))
+                    else:
+                        print(' - - Error! Function', tool.function.name, 'not found')
+
+                    print("\n\n")
+
+                if output is not None:
+
+
+
+                    # Get final response from model with function outputs
+                    final_stream = await envoy.generate_response_stream(model=MODEL_SFW, messages=messages, ctx=context)
+                    async for final_response in final_stream:
+                        print('Final response:', final_response.message.content)
+                        await send_to_webclient(final_response, full_context, websocket) 
+                
             else:
-                await websocket.send_text("Something went wrong, please reload.")
+                await send_to_webclient(response, full_context, websocket)
+
 
         # msgs.append(data)
         # await websocket.send_text(f"Message text was: {msgs}")
 
 
-def create_response(message: str) -> str:
+def create_response(message: str) -> str | None:
     """
     Create a response dictionary.
 
@@ -197,6 +248,7 @@ def create_response(message: str) -> str:
     # - deepseek-r1:14b
 
     text = ai.generate_response(model="deepseek-r1:7b", question=message)
-    ai.generate_audio(text)
-
-    return "Generated .wav at server with TTS: " + text
+    
+    if text:
+        ai.generate_audio(text)
+        return "Generated .wav at server with TTS: " + text

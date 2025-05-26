@@ -15,6 +15,8 @@ T = TypeVar("T")
 U = TypeVar("U")
 P = ParamSpec("P")
 
+EXPR = r"<think>.*?</think>\n?"
+
 
 class ToolType(str, Enum):
     function = "function"
@@ -85,35 +87,25 @@ class Envoy:
             print("\n")
         print("===================================")
 
-    async def generate_response_stream(self, model: str, question: str, ctx: str):
+    async def generate_response_stream(self, model: str, messages, ctx: str):
         print("Creating Async Client")
 
-        formatted_prompt = f"""The context consists of previous questions from the
-            user and answers you have given to the user. Please include the context when
-            generating a new answer. 
+        # formatted_prompt = f"""The context consists of previous questions from the
+        #     user and answers you have given to the user. Please include the context when
+        #     generating a new answer. 
             
-            Context: {ctx}\n\n
+        #     Context: {ctx}\n\n
             
-            Question: {question}\n\n
+        #     Question: {question}\n\n
 
-            When generating an answer, please do not use any fancy symbols or formatting.
-            Keep it plain text.
-            """
-
-        # TODO: make tool call work with a message history
-        #   - messages[]   ->    a message history
-        #  https://github.com/ollama/ollama-python/blob/main/examples/async-tools.py
-
+        #     When generating an answer, please do not use any fancy symbols or formatting.
+        #     Keep it plain text.
+        #     """
         print("generating response")
         response_stream: AsyncIterator[ChatResponse] = await self.client.chat(
             model=model,
             stream=True,
-            messages=[
-                {
-                    "role": "user",
-                    "content": formatted_prompt,
-                },
-            ],
+            messages=messages,
             tools=[tool.model_dump() for tool in self.tools],
         )
 
@@ -121,7 +113,7 @@ class Envoy:
         return response_stream
 
 
-def generate_response(model: str, question: str) -> str:
+def generate_response(model: str, question: str) -> str | None:
     """
     Generate a response from the model using the provided question.
 
@@ -146,11 +138,12 @@ def generate_response(model: str, question: str) -> str:
     )
 
     # remove <think> tags
-    response_content: str = remove_think_tags(response)
-    return response_content
+    if response.message.content:
+        response_content: str = remove_think_tags(response.message.content)
+        return response_content
 
 
-def remove_think_tags(response: ChatResponse) -> str:
+def remove_think_tags(response: str) -> str:
     """
     Remove <think> tags from the response content and the reasoning inbetween these tags.
 
@@ -161,9 +154,9 @@ def remove_think_tags(response: ChatResponse) -> str:
         str: The response content without <think> tags.
 
     """
-    expr = r"<think>.*?</think>\n?"
+    
     trimmed_response_content = re.sub(
-        expr, "", response.message.content or "", flags=re.DOTALL
+        EXPR, "", response or "", flags=re.DOTALL
     )
     return trimmed_response_content
 
