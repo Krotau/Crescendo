@@ -1,7 +1,5 @@
-import json
-
 from fastapi import WebSocket
-from ollama import AsyncClient, ChatResponse, Message
+from ollama import AsyncClient, Message
 from pydantic import BaseModel
 from starlette.responses import FileResponse
 
@@ -91,39 +89,6 @@ MODEL_NSFW_1 = "goekdenizguelmez/JOSIEFIED-Qwen3:8b"
 MODEL_NSFW_2 = "huihui_ai/qwen3-abliterated:16b"
 
 
-
-async def send_to_webclient(response: ChatResponse, full_context, websocket):
-    context = "".join(full_context)
-    context_len = len(context)
-
-    if response.message.content is None:
-        return
-    
-    parsed_resp = ai.remove_think_tags(response.message.content)
-
-    if response.message.content and not response.done:
-        full_context.append(response.message.content)
-
-        to_send: dict[str, str | bool | int | None] = {
-            "msg": parsed_resp,
-            "done": response.done,
-            "context_size": context_len,
-        }
-        json_data = json.dumps(to_send)
-        await websocket.send_text(json_data)
-    elif response.done:
-        to_send: dict[str, str | bool | int | None] = {
-            "msg": parsed_resp,
-            "done": response.done,
-            "context_size": context_len,
-        }
-        json_data = json.dumps(to_send)
-        await websocket.send_text(json_data)
-    else:
-        print(response)
-        await websocket.send_text("Something went wrong, please reload.")
-
-
 @router.websocket("/ws")
 async def generate_ws(websocket: WebSocket):
     await websocket.accept()
@@ -134,67 +99,3 @@ async def generate_ws(websocket: WebSocket):
         helper.messages.append(Message.model_validate({'role': 'user', 'content': data}))
         stream = await helper.get_stream(enable_tools=True)
         await helper.parse_stream(stream)
-
-
-        # data = await websocket.receive_text()
-        # if data is None:
-        #     continue
-
-        # messages: list[Message] = [Message.model_validate({'role': 'user', 'content': data})]
-        
-        # print("Received message...")
-        # full_context.append(data)
-
-        # context = "".join(full_context)
-        # # context_len = len(context)
-
-        # stream = await envoy.generate_response_stream(
-        #     model=MODEL_SFW, messages=messages, enable_tools=True
-        # )
-
-
-        # # TODO: Make flow control beter (less if-statements)
-
-        # print("Model thinking...")
-        # async for response in stream:
-
-        #     print("Response part:")
-
-        #     output = None  # Initialize output to avoid unbound error
-        #     final_response = None # Initialize output to avoid unbound error
-
-        #     if response.message.tool_calls:                
-        #         # TODO: 2 types of response data to sync with client
-        #         #  - normal responses (msg, done, context_size)
-        #         #  - tool responses (tool being used, external/interal (enum), )
-
-        #         print(response)
-
-        #         for index, tool in enumerate(response.message.tool_calls):
-        #             if function_to_call := envoy.functions.get(tool.function.name):
-        #                 print(' - - Calling function:', tool.function.name)
-        #                 print(' - - Arguments:', tool.function.arguments)
-        #                 output = function_to_call(**tool.function.arguments)
-        #                 print(' - - Function output:', output)
-
-        #                 # Add the function response to messages for the model to use
-        #                 messages.append(response.message)
-        #                 messages.append(Message.model_validate({'role': 'tool', 'content': str(output), 'name': tool.function.name}))
-        #             else:
-        #                 print(' - - Error! Function', tool.function.name, 'not found')
-
-        #             print("\n\n")
-
-        #         if output is not None:
-        #             # Get final response from model with function outputs
-        #             final_stream = await envoy.generate_response_stream(model=MODEL_SFW, messages=messages, enable_tools=False)
-        #             async for final_response in final_stream:
-        #                 print('Sending Chunk:', final_response.message.content)
-        #                 await send_to_webclient(final_response, full_context, websocket) 
-                
-        #     else:
-        #         await send_to_webclient(response, full_context, websocket)
-
-
-        # # msgs.append(data)
-        # # await websocket.send_text(f"Message text was: {msgs}")
