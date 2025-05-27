@@ -19,17 +19,17 @@ class MessageResponse(BaseModel):
     context_size: int
 
 
-class ToolResponseInit(BaseModel):
+class ToolInitResponse(BaseModel):
     tool_name: str
     tool_arguments: dict
 
 
-class ToolResponseResult(BaseModel):
+class ToolResultResponse(BaseModel):
     done: bool
     result: dict
 
 
-Payload = MessageResponse | ToolResponseInit | ToolResponseResult
+Payload = MessageResponse | ToolInitResponse | ToolResultResponse
 
 
 class Kind(str, Enum):
@@ -75,20 +75,22 @@ class WebsocketHelper:
 
         await self.send(response.model_dump_json())
 
+    async def send_tool_init_response(self, name, arguments):
+        tool_response_init = ToolInitResponse.model_validate({
+            'tool_name': name,
+            'tool_arguments': arguments
+        })
+
+        response = Response.model_validate(dict(
+            kind=Kind.tool_init,
+            payload=tool_response_init
+        )) 
+
+        await self.send(response.model_dump_json())
+
     async def parse_tool_call(self, tool: Message.ToolCall):
         if function_to_call := self.envoy.functions.get(tool.function.name):
-
-            tool_response_init = ToolResponseInit.model_validate({
-                'tool_name': tool.function.name,
-                'tool_arguments': tool.function.arguments
-            })
-
-            response = Response.model_validate(dict(
-                kind=Kind.tool_init,
-                payload=tool_response_init
-            ))
-
-            await self.send(response.model_dump_json())
+            await self.send_tool_init_response(tool.function.name, tool.function.arguments)
 
             output = function_to_call(**tool.function.arguments)
             

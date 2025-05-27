@@ -37,7 +37,7 @@ interface serverResponse {
 }
 
 
-type ServerPayloads = typeof serverToolInitSchema | typeof serverResponseSchema
+// type ServerPayloads = typeof serverToolInitSchema | typeof serverResponseSchema
 
 
 const serverResponseSchema = z.object({
