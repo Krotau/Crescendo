@@ -1,10 +1,11 @@
-from fastapi import WebSocket
+from fastapi import WebSocket, WebSocketDisconnect
 from ollama import AsyncClient, Message
 from pydantic import BaseModel
 from starlette.responses import FileResponse
 
 import server.ai as ai
 
+from loguru import logger
 
 from fastapi import APIRouter
 
@@ -58,13 +59,26 @@ def get_current_weather(city: str):
     return f"it is 20 degrees celcius in {city}"
 
 
+file_param_descriptor = ai.ToolParameters.model_validate(
+    {
+        "type": "object",
+        "properties": {
+            "file_name": {
+                "type": "string",
+                "description": "Name of the file to read",
+            },
+        },
+        "required": ["file_name"],
+    }
+)
+
+@envoy.register("Get the contents of a requested file", file_param_descriptor)
+def get_file_by_name(file_name: str):
+    return "File/Text The name of the person is Alica"
+
+
 class Query(BaseModel):
     q: str
-
-
-@router.get("/gui2")
-def gui2():
-    return FileResponse("gui/gui2.html")
 
 
 @router.get("/")
@@ -83,19 +97,26 @@ def health() -> dict:
     return {"message": "Server is running!"}
 
 
-CONTEXT_SIZE = 40_000
-MODEL_SFW = "qwen3:30b-a3b"
-MODEL_NSFW_1 = "goekdenizguelmez/JOSIEFIED-Qwen3:8b"
-MODEL_NSFW_2 = "huihui_ai/qwen3-abliterated:16b"
-
-
 @router.websocket("/ws")
 async def generate_ws(websocket: WebSocket):
     await websocket.accept()
-    # full_context: list[str] = []
+
+    logger.info("New WebSocket connection!")
+
     while True:
-        helper = WebsocketHelper(websocket, envoy)
-        data = await helper.socket.receive_text()
-        helper.messages.append(Message.model_validate({'role': 'user', 'content': data}))
-        stream = await helper.get_stream(enable_tools=True)
-        await helper.parse_stream(stream)
+        try:
+
+            helper = WebsocketHelper(websocket, envoy)
+            data = await helper.socket.receive_text()
+
+            logger.info(f"Received data from WebSocket -> '{data}'")
+
+            helper.messages.append(Message.model_validate({'role': 'user', 'content': data}))
+            stream = await helper.get_stream(enable_tools=True)
+            await helper.parse_stream(stream)
+
+            logger.info("Sending response back to client")
+
+        except WebSocketDisconnect:
+            logger.warning("unhandled websocket disconnect!")
+            break

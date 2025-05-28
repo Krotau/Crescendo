@@ -1,11 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+
 from server.api import router
 
+# logger.remove()
+# logger.add(sys.stderr, format="<blue>{time}</blue> | <yellow>{level}</yellow> | {message}", enqueue=True)
 
 app = FastAPI()
-
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

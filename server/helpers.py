@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import AsyncIterator, Optional
 from fastapi import WebSocket
+from loguru import logger
 from ollama import ChatResponse, Message
 
 from pydantic import BaseModel
@@ -55,12 +56,17 @@ class WebsocketHelper:
 
     async def parse_call(self, r: ChatResponse):
 
+        logger.info(f"Parsing call for '{r.message.content}'")
+        
+
         if r.message.content:
             self.update_context(r.message.content)
 
         ctx_len: int = 0
         if self.context:
             ctx_len = len(self.context)
+
+        logger.info(f"context length: '{ctx_len}'")
 
         message_response = MessageResponse.model_validate(dict(
             done=r.done,
@@ -73,7 +79,11 @@ class WebsocketHelper:
             payload=message_response
         ))
 
-        await self.send(response.model_dump_json())
+        r_tmp = response.model_dump_json()
+
+        logger.debug(f"Created Messageresponse: {r_tmp}")
+
+        await self.send(r_tmp)
 
     async def send_tool_init_response(self, name, arguments):
         tool_response_init = ToolInitResponse.model_validate({
@@ -84,19 +94,24 @@ class WebsocketHelper:
         response = Response.model_validate(dict(
             kind=Kind.tool_init,
             payload=tool_response_init
-        )) 
+        ))
 
-        await self.send(response.model_dump_json())
+        r_tmp = response.model_dump_json()
+
+        logger.debug(f"Created Tool Init response: {r_tmp}")
+
+        await self.send(r_tmp)
 
     async def parse_tool_call(self, tool: Message.ToolCall):
         if function_to_call := self.envoy.functions.get(tool.function.name):
+
+            logger.debug(f"Created Tool Init call with name: {tool.function.name}, and args: tool.function.arguments")
+
             await self.send_tool_init_response(tool.function.name, tool.function.arguments)
 
             output = function_to_call(**tool.function.arguments)
             
-            print('|-- Calling function:', tool.function.name)
-            print('|-- Arguments:', tool.function.arguments)
-            print('|-- Function output:', output)
+            logger.debug(f"Previous tool had output: {output}")
             
             self.messages.append(Message.model_validate({
                 'role': 'tool',
@@ -110,18 +125,23 @@ class WebsocketHelper:
             print('|-- Error! Function', tool.function.name, 'not found')
 
     def update_context(self, new_context: str):
+        logger.debug("Updating context...")
         if self.context:
             self.context = self.context + new_context
         else:
             self.context = new_context
 
     async def get_stream(self, enable_tools: bool):
+        logger.debug("Creating new stream response...")
         return await self.envoy.generate_response_stream(
             model=MODEL_SFW, messages=self.messages, enable_tools=enable_tools
         )
 
     async def parse_stream(self, stream: AsyncIterator[ChatResponse]):
         async for response in stream:
+
+            logger.debug("Parsing new response from stream...")
+
             if response.message.content:
                 self.update_context(response.message.content)
 
@@ -129,16 +149,25 @@ class WebsocketHelper:
 
             if response.message.tool_calls:
                 for tool in response.message.tool_calls:
+
+                    logger.debug("Handling tool call...")
+
                     self.messages.append(response.message)
                     
                     output = await self.parse_tool_call(tool)
 
             if output is not None:
+
+                logger.debug("Querying model again, but now with tool call info...")
+
                 inner_stream = await self.envoy.generate_response_stream(
                    model=MODEL_SFW, messages=self.messages, enable_tools=False 
                 )
 
+                logger.debug("Querying done!")
+
                 async for inner_response in inner_stream:
+                    logger.debug("Parsing response from tool call result!")
                     await self.parse_call(inner_response)
 
             else:

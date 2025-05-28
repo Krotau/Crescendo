@@ -1,13 +1,18 @@
 import re
+
 from enum import Enum
+
+from loguru import logger
 
 from typing import Any, AsyncIterator, Callable, List, TypeVar, ParamSpec
 
-from ollama import chat, ChatResponse, AsyncClient
+from ollama import Message, chat, ChatResponse, AsyncClient
 from ollama import ListResponse
 
 from kokoro import KPipeline
+
 from pydantic import BaseModel
+
 import soundfile as sf
 
 
@@ -49,6 +54,8 @@ class Envoy:
 
     def register(self, description: str, tool_parameters: ToolParameters):
 
+        logger.info(f"Registered function with description: {description}")
+
         def wrapper(tool_func: Callable[P, U]) -> Callable[P, U]:
 
             tool_descriptor = ToolConfig(
@@ -63,7 +70,6 @@ class Envoy:
             self.tools.append(tool_descriptor)
             self.functions.update({tool_func.__name__: tool_func})
             
-            print("\nAdded tool: " + tool_descriptor.model_dump_json(indent=2))
             return tool_func
 
         return wrapper
@@ -88,8 +94,9 @@ class Envoy:
             print("\n")
         print("===================================")
 
-    async def generate_response_stream(self, model: str, messages, enable_tools: bool):
-        print("Creating Async Client")
+    async def generate_response_stream(self, model: str, messages: list[Message], enable_tools: bool):
+
+        logger.info(f"Generating new response_stream, last message: {messages[-1].content}")
 
         # formatted_prompt = f"""The context consists of previous questions from the
         #     user and answers you have given to the user. Please include the context when
@@ -102,7 +109,6 @@ class Envoy:
         #     When generating an answer, please do not use any fancy symbols or formatting.
         #     Keep it plain text.
         #     """
-        print("generating response")
 
         tools = None
         if enable_tools:
@@ -116,7 +122,8 @@ class Envoy:
             tools=tools,
         )
 
-        print("Done generating")
+        logger.info("Generating new response_stream succesful!")
+
         return response_stream
 
 
