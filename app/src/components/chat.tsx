@@ -54,6 +54,8 @@ const Chat = () => {
 
     const [chats, setChats] = useState(0);
 
+    const [loading, setLoading] = useState(false);
+
     const [reasoning, setReasoning] = useState(false);
 
     const [chatLog, setChatLog] = useAtom(chatLogAtom);
@@ -64,10 +66,14 @@ const Chat = () => {
 
     const setContextSize = useSetAtom(contextSizeAtom);
 
-    const chatSocket = useMemo(() => {return new WebSocket('ws://localhost:8000/ws')}, []);
+    const loc = window.location
+
+    const chatSocket = useMemo(() => {return new WebSocket(`ws://${loc.hostname}:${loc.port}/ws`)}, []);
 
 
     const sendMessage = () => {
+        setLoading(true)
+
         console.log("Sending message to api");
 
         if (chats > 0) {
@@ -122,6 +128,10 @@ const Chat = () => {
             setCurrentChat(newChatInfo)
         }
 
+        if (new_ready) {
+            setLoading(false)
+        }
+
     }
 
 
@@ -131,6 +141,8 @@ const Chat = () => {
 
 
     chatSocket.onmessage = (event: MessageEvent<string>) => {
+        
+
         let raw_data = JSON.parse(event.data)
 
         let data: serverResponse = serverResponseSchema.parse(raw_data)
@@ -173,6 +185,7 @@ const Chat = () => {
             <button onClick={() => sendMessage()}>Send</button>
             <button>Clear Context</button>
             <button onClick={() => {setOpen(!open)}}>File Menu</button>
+            { loading ? <span className="loader"/> : ""}
         </div>
 
         </>

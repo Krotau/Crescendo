@@ -6,7 +6,7 @@ from ollama import ChatResponse, Message
 
 from pydantic import BaseModel
 
-from server.ai import Envoy
+from server.ai import Envoy, remove_think_tags
 
 
 CONTEXT_SIZE = 40_000
@@ -171,6 +171,13 @@ class WebsocketHelper:
                     await self.parse_call(inner_response)
 
             else:
+
+                # trim think tags
+
+                if response.message.content:
+                    trimmed_message = remove_think_tags(response.message.content)
+                    response.message.content = trimmed_message
+
                 await self.parse_call(response)
 
     async def run(self):
